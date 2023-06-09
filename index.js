@@ -71,8 +71,8 @@ async function run() {
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      if (user?.role !== 'Admin') {
+      const user = await userCollection.findOne(query);
+      if (user?.role !== 'admin') {
         return res.status(403).send({ error: true, message: 'Forbidden access' })
       }
       next()
@@ -127,6 +127,11 @@ async function run() {
     //users api's
     app.post('/users', async (req, res) => {
       const user = req.body;
+      const query={email:user.email};
+      const savedUser=await userCollection.findOne(query);
+      if(savedUser){
+        return res.send({message:'User Already added'})
+      }
       const result = await userCollection.insertOne(user);
       res.send(result)
     })
@@ -136,7 +141,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/users/admin/:id', async (req, res) => {
+    app.patch('/users/admin/:id', verifyJWT, verifyJWT, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -145,33 +150,41 @@ async function run() {
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc);
-      console.log(result);
+      // console.log(result);
       res.send(result)
     })
 
-    app.patch('/users/instructor/:id',async(req,res)=>{
-      const id= req.params.id;
-      const filter={_id:new ObjectId(id)};
-      const updateRole={
-        $set:{
-          role:'instructor'
+    app.patch('/users/instructor/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateRole = {
+        $set: {
+          role: 'instructor'
         },
       };
-      const result= await userCollection.updateOne(filter,updateRole);
+      const result = await userCollection.updateOne(filter, updateRole);
       res.send(result)
     })
 
-    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT,  async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       if (req.decoded.email !== email) {
-            return res.send({ admin: false })
+        return res.send({ admin: false })
       }
       const user = await userCollection.findOne(query);
       const result = { admin: user?.role === 'admin' };
+      console.log(result);
       // console.log(result);
       res.send(result)
-})
+    })
+
+    app.delete('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(query);
+      res.send(result)
+    })
 
 
 
