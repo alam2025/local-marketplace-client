@@ -121,7 +121,8 @@ async function run() {
 
       const query = { email: email };
       const result = await selectCourseCollection.find(query).toArray();
-      res.send(result)
+      const sortedResult = result.sort((a, b) => new Date(b.date) - new Date(a.date))
+      res.send(sortedResult)
     })
 
     app.delete('/selectedCourse/:id',verifyJWT,async(req,res)=>{
