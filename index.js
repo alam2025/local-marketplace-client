@@ -56,8 +56,9 @@ async function run() {
     const bannerCollection = client.db('languageSchoolDB').collection('bannerImg')
     const instructorCollection = client.db('languageSchoolDB').collection('instructors')
     const classCollection = client.db('languageSchoolDB').collection('classes')
-    const enrollCollection = client.db('languageSchoolDB').collection('enrollCourse')
+    const selectCourseCollection = client.db('languageSchoolDB').collection('selectedCourseCourse')
     const userCollection = client.db('languageSchoolDB').collection('users')
+    const enrollCourseCollection = client.db('languageSchoolDB').collection('enrollCourses')
 
 
     // jwt token generate 
@@ -99,13 +100,13 @@ async function run() {
 
 
     //added course to server
-    app.post('/enrollCourse', async (req, res) => {
+    app.post('/selectCourse',verifyJWT, async (req, res) => {
       const item = req.body;
-      const result = await enrollCollection.insertOne(item);
+      const result = await selectCourseCollection.insertOne(item);
       res.json(result)
     })
 
-    app.get('/enrollCourse', verifyJWT, async (req, res) => {
+    app.get('/selectCourse', verifyJWT, async (req, res) => {
       const { email } = req.query;
 
 
@@ -119,29 +120,39 @@ async function run() {
       }
 
       const query = { email: email };
-      const result = await enrollCollection.find(query).toArray();
+      const result = await selectCourseCollection.find(query).toArray();
       res.send(result)
     })
+
+    app.delete('/selectedCourse/:id',verifyJWT,async(req,res)=>{
+      const id= req.params.id;
+      const query= {_id:new ObjectId(id)};
+
+      const result=await selectCourseCollection.deleteOne(query);
+      res.send(result)
+    })
+
+
 
 
     //users api's
     app.post('/users', async (req, res) => {
       const user = req.body;
-      const query={email:user.email};
-      const savedUser=await userCollection.findOne(query);
-      if(savedUser){
-        return res.send({message:'User Already added'})
+      const query = { email: user.email };
+      const savedUser = await userCollection.findOne(query);
+      if (savedUser) {
+        return res.send({ message: 'User Already added' })
       }
       const result = await userCollection.insertOne(user);
       res.send(result)
     })
 
-    app.get('/users', verifyJWT, async (req, res) => {
+    app.get('/users', verifyJWT,verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result)
     })
 
-    app.patch('/users/admin/:id', verifyJWT, verifyJWT, async (req, res) => {
+    app.patch('/users/admin/:id',verifyJWT,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -154,7 +165,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/users/instructor/:id', verifyJWT, async (req, res) => {
+    app.patch('/users/instructor/:id',verifyJWT,verifyAdmin,  async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updateRole = {
@@ -166,7 +177,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/users/admin/:email', verifyJWT,  async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       if (req.decoded.email !== email) {
@@ -174,20 +185,19 @@ async function run() {
       }
       const user = await userCollection.findOne(query);
       const result = { admin: user?.role === 'admin' };
-      console.log(result);
+      // console.log(result);
       // console.log(result);
       res.send(result)
     })
 
-    app.delete('/users/:id', async (req, res) => {
+    app.delete('/users/:id',verifyJWT,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await userCollection.deleteOne(query);
       res.send(result)
     })
 
-
-
+  
 
 
     // Send a ping to confirm a successful connection
