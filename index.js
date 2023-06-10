@@ -135,6 +135,33 @@ async function run() {
       res.send(result)
     })
 
+    //enrollment courses api's
+    app.get('/enrollCourses', verifyJWT, async (req, res) => {
+      const { email } = req.query;
+      if (!email) {
+        return res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      // const decodedEmail= req.decoded.email;
+      if (decodedEmail !== email) {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' })
+      }
+
+      const query = { email: email };
+      const paidCourse = await paymentCourseCollection.find(query).toArray()
+      const allCourse = await classCollection.find().toArray()
+
+      const enrollCourses= paidCourse.flatMap(eroll=>{
+        const itemId= eroll.courseItemsId;
+        return itemId.map(id=>{
+           const found= allCourse.find(course=>course._id == id);
+          return found                 
+        })         
+      })
+  
+      res.send(enrollCourses)
+    })
+
 
 
 
@@ -221,7 +248,7 @@ async function run() {
       const payment = req.body;
       const insertResult = await paymentCourseCollection.insertOne(payment);
 
-      const query = { _id: { $in: payment.courseItems.map(id => new ObjectId(id)) } }
+      const query = { _id: { $in: payment.selectItems.map(id => new ObjectId(id)) } }
       const deleteResult = await selectCourseCollection.deleteMany(query);
       console.log(insertResult);
       res.send({ insertResult, deleteResult })
