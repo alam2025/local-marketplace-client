@@ -158,8 +158,25 @@ async function run() {
           return found                 
         })         
       })
+
+      const  insetEnroll = await enrollCourseCollection.insertMany(enrollCourses);
   
-      res.send(enrollCourses)
+      res.send({enrollCourses,insetEnroll})
+    })
+
+
+    app.get('/enrolls',verifyJWT, async(req,res)=>{
+      const result= await enrollCourseCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.delete('/enrollCourses/:id',verifyJWT,async(req,res)=>{
+    const id= req.params.id;
+    const query={_id:new ObjectId(id)};
+    console.log(query);
+    const result = await enrollCourseCollection.deleteOne(query);
+    console.log(result);
+    res.send(result)
     })
 
 
@@ -250,7 +267,7 @@ async function run() {
 
       const query = { _id: { $in: payment.selectItems.map(id => new ObjectId(id)) } }
       const deleteResult = await selectCourseCollection.deleteMany(query);
-      console.log(insertResult);
+      // console.log(insertResult);
       res.send({ insertResult, deleteResult })
 
     })
