@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json())
 
 // verifyJwt 
-const verifyJWT = (req, res, next) => {
+const verifyJWT = async (req, res, next) => {
 
   const authorization = req.headers.authorization;
   // console.log(req.headers);
@@ -81,6 +81,17 @@ async function run() {
       next()
 
     }
+    // instructor verify 
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      if (user?.role !== 'instructor') {
+        return res.status(403).send({ error: true, message: 'Forbidden access' })
+      }
+      next()
+
+    }
 
 
     app.get('/banners', async (req, res) => {
@@ -100,12 +111,19 @@ async function run() {
       res.send(result)
     })
 
+    app.post('/addClass', verifyJWT, verifyInstructor, async (req, res) => {
+      const newClass= req.body;
+      const result = await classCollection.insertOne(newClass);
+      console.log(result);
+      res.send(result)
+    })
+
 
     //added course to server
     app.post('/selectCourse', verifyJWT, async (req, res) => {
       const item = req.body;
       const result = await selectCourseCollection.insertOne(item);
-      res.json(result)
+      res.send(result)
     })
 
     app.get('/selectCourse', verifyJWT, async (req, res) => {
@@ -136,7 +154,7 @@ async function run() {
     })
 
     //enrollment courses api's
-    app.get('/enrollCourses', verifyJWT, async (req, res) => {
+    app.post('/enrollCourse', verifyJWT, async (req, res) => {
       const { email } = req.query;
       if (!email) {
         return res.send([])
@@ -150,33 +168,58 @@ async function run() {
       const query = { email: email };
       const paidCourse = await paymentCourseCollection.find(query).toArray()
       const allCourse = await classCollection.find().toArray()
+      const AlreadySubmitted = await enrollCourseCollection.find().to
 
-      const enrollCourses= paidCourse.flatMap(eroll=>{
-        const itemId= eroll.courseItemsId;
-        return itemId.map(id=>{
-           const found= allCourse.find(course=>course._id == id);
-          return found                 
-        })         
+      const enrollCourses = paidCourse.flatMap(enroll => {
+        const itemId = enroll.courseItemsId;
+        return itemId.map(id => {
+          const found = allCourse.find(course => course._id == id);
+          return found
+        })
       })
 
-      const  insetEnroll = await enrollCourseCollection.insertMany(enrollCourses);
-  
-      res.send({enrollCourses,insetEnroll})
+      const filterCourse = enrollCourses.map(course => {
+        const saved = AlreadySubmitted.find(cd => cd._id == course._id);
+        if (saved) {
+
+        } else {
+          return course
+        }
+      })
+
+      // const deletePayment= 
+      const insertEnroll = await enrollCourseCollection.insertMany(filterCourse);
+      console.log(insertEnroll);
+
+      res.send(insertEnroll)
     })
 
 
-    app.get('/enrolls',verifyJWT, async(req,res)=>{
-      const result= await enrollCourseCollection.find().toArray();
+    app.get('/enrolls', verifyJWT, async (req, res) => {
+      const { email } = req.query;
+
+
+      if (!email) {
+        return res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      // const decodedEmail= req.decoded.email;
+      if (decodedEmail !== email) {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' })
+      }
+
+      const query = { email: email };
+      const result = await enrollCourseCollection.find(query).toArray();
       res.send(result)
     })
 
-    app.delete('/enrollCourses/:id',verifyJWT,async(req,res)=>{
-    const id= req.params.id;
-    const query={_id:new ObjectId(id)};
-    console.log(query);
-    const result = await enrollCourseCollection.deleteOne(query);
-    console.log(result);
-    res.send(result)
+    app.delete('/enrollCourses/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      console.log(query);
+      const result = await enrollCourseCollection.deleteOne(query);
+      console.log(result);
+      res.send(result)
     })
 
 
@@ -199,6 +242,8 @@ async function run() {
       res.send(result)
     })
 
+
+
     app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -211,6 +256,9 @@ async function run() {
       // console.log(result);
       res.send(result)
     })
+
+
+
 
     app.patch('/users/instructor/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -237,10 +285,46 @@ async function run() {
       res.send(result)
     })
 
+    //instrutor
+
+
+    app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      if (req.decoded.email !== email) {
+        return res.send({ instructor: false })
+      }
+      const user = await userCollection.findOne(query);
+      const result = { instructor: user?.role === 'instructor' }
+      console.log(result);
+      res.send(result)
+    })
+
+
+
+
     app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await userCollection.deleteOne(query);
+      res.send(result)
+    })
+
+    app.get('/paymentshistory', verifyJWT, async (req, res) => {
+      const { email } = req.query;
+
+
+      if (!email) {
+        return res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      // const decodedEmail= req.decoded.email;
+      if (decodedEmail !== email) {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' })
+      }
+
+      const query = { email: email };
+      const result = await paymentCourseCollection.find(query).toArray();
       res.send(result)
     })
 
