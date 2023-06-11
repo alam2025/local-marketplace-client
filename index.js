@@ -66,7 +66,7 @@ async function run() {
     // jwt token generate 
     app.post('/jwt', (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '5h' })
       res.send({ token })
     })
 
@@ -318,6 +318,46 @@ async function run() {
       };
       const result = await userCollection.updateOne(filter, updateDoc);
       // console.log(result);
+      res.send(result)
+    })
+
+    app.patch('/courseUpdate/admin/:id',verifyJWT,verifyAdmin,async(req,res)=>{
+      const id= req.params.id;
+      const filter={_id:new ObjectId(id)};
+      const updateDoc={
+        $set:{
+          status:'Active'
+        },
+      };
+      const result = await classCollection.updateOne(filter,updateDoc);
+      
+      res.send(result)
+    })
+
+    app.patch('/courseDeny/admin/:id',verifyJWT,verifyAdmin,async(req,res)=>{
+      const id= req.params.id;
+      const filter={_id:new ObjectId(id)};
+      const updateDoc={
+        $set:{
+          status:'Denied'
+        },
+      };
+      const result = await classCollection.updateOne(filter,updateDoc);
+      
+      res.send(result)
+    })
+
+    app.patch('/admin/sendFeedback/:id',async(req,res)=>{
+      const feedback= req.body.feedback;
+      const id= req.params.id;
+      const query= {_id:new ObjectId(id)};
+      const updateDoc={
+        $set:{
+          feedback:feedback
+        }
+      }
+
+      const result = await classCollection.updateOne(query,updateDoc)
       res.send(result)
     })
 
