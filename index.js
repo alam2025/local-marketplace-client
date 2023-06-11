@@ -111,13 +111,77 @@ async function run() {
       res.send(result)
     })
 
+
+    //instructors added classes api's
     app.post('/addClass', verifyJWT, verifyInstructor, async (req, res) => {
-      const newClass= req.body;
+      const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
       console.log(result);
       res.send(result)
     })
 
+    app.get('/instructorClasses', verifyJWT, verifyInstructor, async (req, res) => {
+      const { email } = req.query;
+
+
+      if (!email) {
+        return res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      // const decodedEmail= req.decoded.email;
+      if (decodedEmail !== email) {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' })
+      }
+
+      const query = { email: email };
+      const result = await classCollection.find(query).toArray();
+      const sortedResult = result.sort((a, b) => new Date(b.date) - new Date(a.date))
+      res.send(sortedResult);
+    })
+
+
+    app.get('/findClass/:id', verifyJWT, verifyInstructor, async (req, res) => {
+      const { email } = req.query;
+
+
+      if (!email) {
+        return res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      // const decodedEmail= req.decoded.email;
+      if (decodedEmail !== email) {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' })
+      }
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await classCollection.findOne(query)
+      res.send(result)
+    })
+
+    app.patch('/instructor/class/update/:id', verifyJWT, verifyInstructor, async (req, res) => {
+      const { email } = req.query;
+
+
+      if (!email) {
+        return res.send([])
+      }
+      const decodedEmail = req.decoded.email;
+      // const decodedEmail= req.decoded.email;
+      if (decodedEmail !== email) {
+        return res.status(403).send({ error: true, message: 'Forbidden Access' })
+      }
+      const data= req.body;
+
+      const id=req.params.id;
+      const filter = {_id:new ObjectId(id)};
+
+      const updateDoc={
+        $set:data
+      }
+
+      const result = await classCollection.updateOne(filter,updateDoc);
+      res.send(result)
+    })
 
     //added course to server
     app.post('/selectCourse', verifyJWT, async (req, res) => {
