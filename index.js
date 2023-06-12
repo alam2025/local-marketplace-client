@@ -526,16 +526,17 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/reduceSeats/:id',verifyJWT,async(req,res)=>{
-      const id= req.params.id;
-      const filter={_id:new ObjectId(id)};
-      const updateDoc={
-        $inc:{
-          available_seats:-1
-        }
+    app.patch('/reduceSeats/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        
+        $inc: { available_seats: -1,enroll_student:1 },
+        
+
       }
 
-      const result = await classCollection.updateOne(filter,updateDoc)
+      const result = await classCollection.updateOne(filter, updateDoc)
       res.send(result)
     })
 
