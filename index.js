@@ -8,6 +8,12 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 3000
 
 // midleware languageClub  GNJCUO0PZ158bfcD
+// const corsOptions = {
+//   origin: '*',
+//   credentials: true,
+//   optionSuccessStatus: 200,
+// }
+
 app.use(cors());
 app.use(express.json())
 
@@ -100,7 +106,9 @@ async function run() {
     })
     // instructors api 
     app.get('/instructors', async (req, res) => {
-      const result = await instructorCollection.find().toArray();
+      
+      const result = await userCollection.find({role:'instructor'}).toArray();
+      console.log(result);
       res.send(result)
 
     })
@@ -116,7 +124,7 @@ async function run() {
     app.post('/addClass', verifyJWT, verifyInstructor, async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
-      console.log(result);
+      
       res.send(result)
     })
 
@@ -170,16 +178,16 @@ async function run() {
       if (decodedEmail !== email) {
         return res.status(403).send({ error: true, message: 'Forbidden Access' })
       }
-      const data= req.body;
+      const data = req.body;
 
-      const id=req.params.id;
-      const filter = {_id:new ObjectId(id)};
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
 
-      const updateDoc={
-        $set:data
+      const updateDoc = {
+        $set: data
       }
 
-      const result = await classCollection.updateOne(filter,updateDoc);
+      const result = await classCollection.updateOne(filter, updateDoc);
       res.send(result)
     })
 
@@ -306,6 +314,27 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/oneUsers',verifyJWT,async(req,res)=>{
+      const {email}= req.query;
+      const query={email:email}
+      const result =await userCollection.findOne(query);
+      // console.log(result);
+      res.send(result);
+    })
+
+    app.patch('/updateInstructorInfo/:id',async(req,res)=>{
+      const user= req.body;
+      const id=req.params.id;
+      const filter={_id:new ObjectId(id)};
+      const updateDoc={
+        $set:user
+      }
+      
+      const result =await userCollection.updateOne(filter,updateDoc);
+      console.log(result);
+      res.send(result)
+    })
+
 
 
     app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
@@ -321,46 +350,52 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/courseUpdate/admin/:id',verifyJWT,verifyAdmin,async(req,res)=>{
-      const id= req.params.id;
-      const filter={_id:new ObjectId(id)};
-      const updateDoc={
-        $set:{
-          status:'Active'
+    app.patch('/courseUpdate/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'Active'
         },
       };
-      const result = await classCollection.updateOne(filter,updateDoc);
-      
+      const result = await classCollection.updateOne(filter, updateDoc);
+
       res.send(result)
     })
 
-    app.patch('/courseDeny/admin/:id',verifyJWT,verifyAdmin,async(req,res)=>{
-      const id= req.params.id;
-      const filter={_id:new ObjectId(id)};
-      const updateDoc={
-        $set:{
-          status:'Denied'
+    app.patch('/courseDeny/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'Denied'
         },
       };
-      const result = await classCollection.updateOne(filter,updateDoc);
-      
+      const result = await classCollection.updateOne(filter, updateDoc);
+
       res.send(result)
     })
 
-    app.patch('/admin/sendFeedback/:id',async(req,res)=>{
-      const feedback= req.body.feedback;
-      const id= req.params.id;
-      const query= {_id:new ObjectId(id)};
-      const updateDoc={
-        $set:{
-          feedback:feedback
+    app.patch('/admin/sendFeedback/:id', async (req, res) => {
+      const feedback = req.body.feedback;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          feedback: feedback
         }
       }
 
-      const result = await classCollection.updateOne(query,updateDoc)
+      const result = await classCollection.updateOne(query, updateDoc)
       res.send(result)
     })
 
+    app.delete('/admin/deleteCourse/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await classCollection.deleteOne(query);
+      res.send(result)
+    })
 
 
 
@@ -400,7 +435,7 @@ async function run() {
       }
       const user = await userCollection.findOne(query);
       const result = { instructor: user?.role === 'instructor' }
-      console.log(result);
+      // console.log(result);
       res.send(result)
     })
 
@@ -429,6 +464,15 @@ async function run() {
 
       const query = { email: email };
       const result = await paymentCourseCollection.find(query).toArray();
+      const sortedResult = result.sort((a, b) => new Date(b.date) - new Date(a.date))
+
+      res.send(sortedResult)
+    })
+
+    app.delete('/paymentHistoryDelete/:id', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await paymentCourseCollection.deleteOne(query);
       res.send(result)
     })
 
@@ -436,10 +480,11 @@ async function run() {
     // payment's api 
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const { price } = req.body;
+      const tk = parseFloat(price)
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: price * 100,
+        amount: tk * 100,
         currency: "usd",
         payment_method_types: ['card']
       });
@@ -451,12 +496,32 @@ async function run() {
 
     app.post('/payments', verifyJWT, async (req, res) => {
       const payment = req.body;
+      // const {email}= req.query;
+      const item = req.body;
+      const w = item.courseItemsId;
       const insertResult = await paymentCourseCollection.insertOne(payment);
 
       const query = { _id: { $in: payment.selectItems.map(id => new ObjectId(id)) } }
       const deleteResult = await selectCourseCollection.deleteMany(query);
-      // console.log(insertResult);
-      res.send({ insertResult, deleteResult })
+
+
+      const q = { _id: { $in: w.map(id => new ObjectId(id)) } }
+
+      const result = await classCollection.find(q).toArray();
+
+
+      //
+      // const updatedEnrollments = result.map(enrollment => ({
+      //   ...enrollment,
+      //   enroll_user_email: 'alam@gmail.com' // Replace with the desired email value
+      // }));
+
+      //
+
+
+      const r = await enrollCourseCollection.insertMany(result)
+
+      res.send({ insertResult, deleteResult });
 
     })
 
