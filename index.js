@@ -2,6 +2,8 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const path = require('path')
+const nodemailer = require("nodemailer");
+const mg = require('nodemailer-mailgun-transport');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -42,7 +44,40 @@ const verifyJWT = async (req, res, next) => {
 
 }
 
+const auth = {
+  auth: {
+    api_key: process.env.EMAIL_PRIVATE_API_KEY,
+    domain: process.env.EMAIL_DOMAIN
+  }
+}
 
+const transporter = nodemailer.createTransport(mg(auth));
+const emailSend = async (payment) => {
+
+
+  // let transporter = nodemailer.createTransport({
+  //   host: "smtp.ethereal.email",
+  //   port: 587,
+  //   secure: false, // true for 465, false for other ports
+  //   auth: {
+  //     user: testAccount.user, // generated ethereal user
+  //     pass: testAccount.pass, // generated ethereal password
+  //   },
+  // });
+
+  // send mail with defined transport object
+  transporter.sendMail({
+    from: 'alam13100852@gmail.com', // sender address
+    to: "alam13100852@gmail.com", // list of receivers
+    subject: "Hello ✔", // Subject line
+    text: "Hello world?", // plain text body
+    html: `
+    <b>Hello world?</b>
+    <p>price : ${payment.price} </p>
+    <p>ID : ${payment.transactionId} </p>
+    `, // html body
+  });
+}
 
 
 // mongodb 
@@ -516,6 +551,7 @@ async function run() {
 
       const query = { _id: new ObjectId(payment.selectItem) }
       const deleteResult = await selectCourseCollection.deleteOne(query);
+      emailSend(payment)
       res.send(insertResult);
 
     })
@@ -530,13 +566,15 @@ async function run() {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
-        
-        $inc: { available_seats: -1,enroll_student:1 },
-        
+
+        $inc: { available_seats: -1, enroll_student: 1 },
+
 
       }
 
       const result = await classCollection.updateOne(filter, updateDoc)
+
+
       res.send(result)
     })
 
