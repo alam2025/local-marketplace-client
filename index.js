@@ -100,13 +100,14 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
-    const bannerCollection = client.db('languageSchoolDB').collection('bannerImg')
-    const instructorCollection = client.db('languageSchoolDB').collection('instructors')
-    const classCollection = client.db('languageSchoolDB').collection('classes')
-    const selectCourseCollection = client.db('languageSchoolDB').collection('selectedCourseCourse')
-    const userCollection = client.db('languageSchoolDB').collection('users')
-    const enrollCourseCollection = client.db('languageSchoolDB').collection('enrollCourses')
-    const paymentCourseCollection = client.db('languageSchoolDB').collection('payments')
+    const bannerCollection = client.db('openSourceDB').collection('bannerImg')
+    const instructorCollection = client.db('openSourceDB').collection('instructors')
+    const classCollection = client.db('openSourceDB').collection('projects')
+    const selectCourseCollection = client.db('openSourceDB').collection('selectedCourseCourse')
+    const userCollection = client.db('openSourceDB').collection('users')
+    const enrollCourseCollection = client.db('openSourceDB').collection('enrollCourses')
+    const paymentCourseCollection = client.db('openSourceDB').collection('payments')
+    const applyContributorCollection = client.db('openSourceDB').collection('contributors')
 
 
     // jwt token generate 
@@ -169,7 +170,8 @@ async function run() {
 
 
     //instructors added classes api's
-    app.post('/addClass', verifyJWT, verifyInstructor, async (req, res) => {
+    // app.post('/addClass', verifyJWT, verifyInstructor, async (req, res) => {
+    app.post('/addClass', async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
 
@@ -178,6 +180,7 @@ async function run() {
 
     app.get('/instructorClasses', verifyJWT, verifyInstructor, async (req, res) => {
       const { email } = req.query;
+     
 
 
       if (!email) {
@@ -189,8 +192,9 @@ async function run() {
         return res.status(403).send({ error: true, message: 'Forbidden Access' })
       }
 
-      const query = { email: email };
+      const query = {  Contributor_email: email };
       const result = await classCollection.find(query).toArray();
+     
       const sortedResult = result.sort((a, b) => new Date(b.date) - new Date(a.date))
       res.send(sortedResult);
     })
@@ -309,7 +313,7 @@ async function run() {
 
       // const deletePayment= 
       const insertEnroll = await enrollCourseCollection.insertMany(filterCourse);
-      console.log(insertEnroll);
+    
 
       res.send(insertEnroll)
     })
@@ -369,6 +373,58 @@ async function run() {
       // console.log(result);
       res.send(result);
     })
+
+
+    // apply contributor---------------------------------- 
+
+    app.post('/applyContributor',async(req,res)=>{
+      let data = req.body;
+    
+     
+
+      
+      data={...data, role:'user'}
+      const query ={email: data.email}
+      
+      
+      
+      const user= await userCollection.findOne(query);
+      const check= await applyContributorCollection.findOne(query);
+   ;
+      if(check){
+        if(check.email === data.email){
+        
+          return res.status(200).send({ error: true, message: 'Already submitted form' })
+        }
+      }
+
+      if(user.role =='instructor' || user.role =='admin'){
+        return res.status(200).send({ error: true, message: 'Already you are a instructor' })
+      }
+      const result= await applyContributorCollection.insertOne(data);
+      res.status(200).send({ error: true, message: 'Form Submitted .Please Wait until admin approved!!!' })
+    })
+
+    // get contributor application --------------
+    app.get('/contributors',async(req,res)=>{
+      const result= await applyContributorCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.patch('/roleChanged/:id/:email',async(req,res)=>{
+   const {id}= req.params;
+   const {email}= req.params;;
+   const query= {email:email}
+   const filter = {_id:new ObjectId(id)};
+   const updated= {
+    $set :{role:'instructor'}
+   }
+   const result = await applyContributorCollection.updateOne(filter,updated);
+   const instructor = await userCollection.updateOne(query,updated);
+   res.send(instructor)
+    })
+
+
 
     app.patch('/updateInstructorInfo/:id', async (req, res) => {
       const user = req.body;
