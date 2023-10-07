@@ -650,7 +650,7 @@ run().catch(console.dir);
 // mongodb 
 
 app.get('/', (req, res) => {
-  res.send('LANGUAGE LEARNING SCHOOL SERVER IS RUNNING...!')
+  res.send('POLYMATRIX SERVER IS RUNNING...!')
 })
 
 app.listen(port, () => {
